@@ -1,0 +1,30 @@
+name: Vyspec QA
+image: ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.0.0
+category: Testing
+description: Run saved or one-time Vyspec QA against an application in Bitbucket Pipelines.
+repository: https://github.com/ramonzubiate/vyspec-bitbucket-pipe
+maintainer:
+  name: Vyspec
+  website: https://vyspec.com
+vendor:
+  name: Vyspec
+  website: https://vyspec.com
+tags:
+  - qa
+  - testing
+  - browser
+  - ai
+variables:
+  - name: VSY_PROJECT_API_KEY
+  - name: RUN_PROFILE_ID
+    default: ""
+  - name: ONE_TIME_PROFILE_FILE
+    default: ""
+  - name: RUN_NOTES_FILE
+    default: ""
+  - name: APP_READY_TIMEOUT
+    default: "120"
+  - name: BITBUCKET_VYSPEC_TOKEN
+    default: ""
+  - name: VSY_API_URL
+    default: "https://app.vyspec.com"
