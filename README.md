@@ -15,7 +15,7 @@ pipelines:
           name: Vyspec QA
           script:
             - ./ci/start-app-for-vyspec.sh
-            - pipe: docker://ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.1.0
+            - pipe: docker://ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.2.0
               variables:
                 VSY_PROJECT_API_KEY: $VSY_PROJECT_API_KEY
                 RUN_PROFILE_ID: "<run-profile-id>"
@@ -65,7 +65,7 @@ token is supplied, each rerun updates one existing pull-request comment instead 
 Run a saved Profile:
 
 ```yaml
-- pipe: docker://ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.1.0
+- pipe: docker://ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.2.0
   variables:
     VSY_PROJECT_API_KEY: $VSY_PROJECT_API_KEY
     RUN_PROFILE_ID: "20734cd8-afa8-4dcb-a71c-d64b15a7e850"
@@ -74,7 +74,7 @@ Run a saved Profile:
 Run repository-owned direct instructions with an authenticated Session Profile:
 
 ```yaml
-- pipe: docker://ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.1.0
+- pipe: docker://ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.2.0
   variables:
     VSY_PROJECT_API_KEY: $VSY_PROJECT_API_KEY
     INSTRUCTIONS_FILE: ".vyspec/verify-fix.md"
@@ -82,6 +82,10 @@ Run repository-owned direct instructions with an authenticated Session Profile:
     START_PATH: "/account"
     BITBUCKET_VYSPEC_TOKEN: $BITBUCKET_VYSPEC_TOKEN
 ```
+
+To support `@vyspec run` pull-request comments, also define a custom pipeline named
+`vyspec-command`. Vyspec starts that pipeline with short-lived runtime variables after verifying
+the webhook signature, commenter permission, open pull request, and exact head commit.
 
 ## Support
 

@@ -40,16 +40,21 @@ def load_configuration() -> PipeConfiguration:
     if not optional_environment("VSY_PROJECT_API_KEY"):
         raise PipeConfigurationError("VSY_PROJECT_API_KEY is required")
 
-    run_profile_id = optional_environment("RUN_PROFILE_ID")
-    instructions = optional_environment("INSTRUCTIONS")
-    instructions_file = optional_environment("INSTRUCTIONS_FILE")
+    comment_command = optional_environment("VYSPEC_COMMENT_COMMAND") == "true"
+    run_profile_id = None if comment_command else optional_environment("RUN_PROFILE_ID")
+    instructions = (
+        optional_environment("VYSPEC_INSTRUCTIONS")
+        if comment_command
+        else optional_environment("INSTRUCTIONS")
+    )
+    instructions_file = None if comment_command else optional_environment("INSTRUCTIONS_FILE")
     if sum(bool(value) for value in (run_profile_id, instructions, instructions_file)) != 1:
         raise PipeConfigurationError(
             "set exactly one of RUN_PROFILE_ID, INSTRUCTIONS, or INSTRUCTIONS_FILE"
         )
 
-    session_profile_id = optional_environment("SESSION_PROFILE_ID")
-    start_path = optional_environment("START_PATH")
+    session_profile_id = None if comment_command else optional_environment("SESSION_PROFILE_ID")
+    start_path = None if comment_command else optional_environment("START_PATH")
     if run_profile_id and (session_profile_id or start_path):
         raise PipeConfigurationError(
             "SESSION_PROFILE_ID and START_PATH are available only for direct instructions"
@@ -72,6 +77,13 @@ def load_configuration() -> PipeConfiguration:
         raise PipeConfigurationError("APP_READY_TIMEOUT must be an integer") from error
     if not 1 <= app_ready_timeout <= 600:
         raise PipeConfigurationError("APP_READY_TIMEOUT must be between 1 and 600")
+
+    expected_sha = optional_environment("VYSPEC_EXPECTED_SHA")
+    current_sha = optional_environment("BITBUCKET_COMMIT")
+    if comment_command and (not expected_sha or expected_sha != current_sha):
+        raise PipeConfigurationError(
+            "the pull request changed before this pipeline started"
+        )
 
     return PipeConfiguration(
         app_ready_timeout=app_ready_timeout,
@@ -112,10 +124,10 @@ def runner_environment() -> dict[str, str]:
         {
             "CI": "true",
             "VSY_APP_PORT": str(VYSPEC_APP_PORT),
-            "VSY_CI_BRANCH": os.getenv("BITBUCKET_BRANCH", ""),
-            "VSY_CI_COMMIT_SHA": os.getenv("BITBUCKET_COMMIT", ""),
+            "VSY_CI_BRANCH": os.getenv("VYSPEC_BRANCH") or os.getenv("BITBUCKET_BRANCH", ""),
+            "VSY_CI_COMMIT_SHA": os.getenv("VYSPEC_EXPECTED_SHA") or os.getenv("BITBUCKET_COMMIT", ""),
             "VSY_CI_PROVIDER": "bitbucket",
-            "VSY_CI_PULL_REQUEST_NUMBER": os.getenv("BITBUCKET_PR_ID", ""),
+            "VSY_CI_PULL_REQUEST_NUMBER": os.getenv("VYSPEC_CHANGE_REQUEST_NUMBER") or os.getenv("BITBUCKET_PR_ID", ""),
             "VSY_CI_REPOSITORY": os.getenv("BITBUCKET_REPO_FULL_NAME", ""),
             "VSY_HEADLESS": "true",
         }
@@ -226,7 +238,9 @@ def load_result(result_file: Path) -> dict[str, object] | None:
 
 def update_pull_request_comment(result_file: Path) -> None:
     token = optional_environment("BITBUCKET_VYSPEC_TOKEN")
-    pull_request = optional_environment("BITBUCKET_PR_ID")
+    pull_request = optional_environment("BITBUCKET_PR_ID") or optional_environment(
+        "VYSPEC_CHANGE_REQUEST_NUMBER"
+    )
     repository = optional_environment("BITBUCKET_REPO_FULL_NAME")
     if not token or not pull_request or not repository:
         return

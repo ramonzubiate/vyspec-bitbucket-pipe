@@ -172,3 +172,40 @@ def test_runner_environment_uses_bitbucket_revision(monkeypatch: pytest.MonkeyPa
     assert environment["VSY_CI_PULL_REQUEST_NUMBER"] == "7"
     assert environment["VSY_CI_REPOSITORY"] == "vyspec/example"
     assert environment["VSY_HEADLESS"] == "true"
+
+
+def test_comment_command_overrides_saved_profile_and_pins_revision(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    configure(monkeypatch, tmp_path)
+    monkeypatch.setenv("RUN_PROFILE_ID", "automatic-regression-profile")
+    monkeypatch.setenv("VYSPEC_COMMENT_COMMAND", "true")
+    monkeypatch.setenv("VYSPEC_INSTRUCTIONS", "Verify the new checkout behavior.")
+    monkeypatch.setenv("VYSPEC_EXPECTED_SHA", "a" * 40)
+    monkeypatch.setenv("BITBUCKET_COMMIT", "a" * 40)
+    monkeypatch.setenv("VYSPEC_BRANCH", "feature/checkout")
+    monkeypatch.setenv("VYSPEC_CHANGE_REQUEST_NUMBER", "19")
+
+    configuration = pipe.load_configuration()
+    environment = pipe.runner_environment()
+
+    assert configuration.run_profile_id is None
+    assert configuration.instructions == "Verify the new checkout behavior."
+    assert environment["VSY_CI_BRANCH"] == "feature/checkout"
+    assert environment["VSY_CI_COMMIT_SHA"] == "a" * 40
+    assert environment["VSY_CI_PULL_REQUEST_NUMBER"] == "19"
+
+
+def test_comment_command_rejects_a_moved_pull_request(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    configure(monkeypatch, tmp_path)
+    monkeypatch.setenv("VYSPEC_COMMENT_COMMAND", "true")
+    monkeypatch.setenv("VYSPEC_INSTRUCTIONS", "Verify checkout.")
+    monkeypatch.setenv("VYSPEC_EXPECTED_SHA", "a" * 40)
+    monkeypatch.setenv("BITBUCKET_COMMIT", "b" * 40)
+
+    with pytest.raises(pipe.PipeConfigurationError, match="changed"):
+        pipe.load_configuration()

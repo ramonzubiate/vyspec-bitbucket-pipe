@@ -1,5 +1,5 @@
 name: Vyspec QA
-image: ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.1.0
+image: ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.2.0
 category: Testing
 description: Run a saved Vyspec Profile or direct QA instructions in Bitbucket Pipelines.
 repository: https://github.com/ramonzubiate/vyspec-bitbucket-pipe
