@@ -86,6 +86,8 @@ Run repository-owned direct instructions with an authenticated Session Profile:
 To support `@vyspec run` pull-request comments, also define a custom pipeline named
 `vyspec-command`. Vyspec starts that pipeline with short-lived runtime variables after verifying
 the webhook signature, commenter permission, open pull request, and exact head commit.
+Pass `VYSPEC_COMMENT_COMMAND`, `VYSPEC_INSTRUCTIONS`, `VYSPEC_CHANGE_REQUEST_NUMBER`,
+`VYSPEC_EXPECTED_SHA`, and `VYSPEC_BRANCH` through the Pipe's `variables` map in that custom step.
 
 ## Support
 
