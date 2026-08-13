@@ -23,10 +23,12 @@ class PipeConfigurationError(ValueError):
 @dataclass(frozen=True)
 class PipeConfiguration:
     app_ready_timeout: int
-    one_time_profile_file: str | None
+    instructions: str | None
+    instructions_file: str | None
     result_file: Path
-    run_notes_file: str | None
     run_profile_id: str | None
+    session_profile_id: str | None
+    start_path: str | None
 
 
 def optional_environment(name: str) -> str | None:
@@ -39,24 +41,29 @@ def load_configuration() -> PipeConfiguration:
         raise PipeConfigurationError("VSY_PROJECT_API_KEY is required")
 
     run_profile_id = optional_environment("RUN_PROFILE_ID")
-    one_time_profile_file = optional_environment("ONE_TIME_PROFILE_FILE")
-    if bool(run_profile_id) == bool(one_time_profile_file):
+    instructions = optional_environment("INSTRUCTIONS")
+    instructions_file = optional_environment("INSTRUCTIONS_FILE")
+    if sum(bool(value) for value in (run_profile_id, instructions, instructions_file)) != 1:
         raise PipeConfigurationError(
-            "set exactly one of RUN_PROFILE_ID or ONE_TIME_PROFILE_FILE"
+            "set exactly one of RUN_PROFILE_ID, INSTRUCTIONS, or INSTRUCTIONS_FILE"
+        )
+
+    session_profile_id = optional_environment("SESSION_PROFILE_ID")
+    start_path = optional_environment("START_PATH")
+    if run_profile_id and (session_profile_id or start_path):
+        raise PipeConfigurationError(
+            "SESSION_PROFILE_ID and START_PATH are available only for direct instructions"
         )
 
     clone_directory = Path(
         optional_environment("BITBUCKET_CLONE_DIR") or Path.cwd()
     ).resolve()
     result_file = clone_directory / RESULT_FILENAME
-    run_notes_file = optional_environment("RUN_NOTES_FILE")
 
-    for label, value in (
-        ("ONE_TIME_PROFILE_FILE", one_time_profile_file),
-        ("RUN_NOTES_FILE", run_notes_file),
-    ):
-        if value and not (clone_directory / value).is_file():
-            raise PipeConfigurationError(f"{label} does not exist: {value}")
+    if instructions_file and not (clone_directory / instructions_file).is_file():
+        raise PipeConfigurationError(
+            f"INSTRUCTIONS_FILE does not exist: {instructions_file}"
+        )
 
     raw_timeout = optional_environment("APP_READY_TIMEOUT") or "120"
     try:
@@ -68,10 +75,12 @@ def load_configuration() -> PipeConfiguration:
 
     return PipeConfiguration(
         app_ready_timeout=app_ready_timeout,
-        one_time_profile_file=one_time_profile_file,
+        instructions=instructions,
+        instructions_file=instructions_file,
         result_file=result_file,
-        run_notes_file=run_notes_file,
         run_profile_id=run_profile_id,
+        session_profile_id=session_profile_id,
+        start_path=start_path,
     )
 
 
@@ -86,10 +95,14 @@ def runner_arguments(configuration: PipeConfiguration) -> list[str]:
     ]
     if configuration.run_profile_id:
         arguments.extend(("--profile", configuration.run_profile_id))
+    elif configuration.instructions:
+        arguments.extend(("--instructions", configuration.instructions))
     else:
-        arguments.extend(("--one-time", configuration.one_time_profile_file or ""))
-    if configuration.run_notes_file:
-        arguments.extend(("--notes", configuration.run_notes_file))
+        arguments.extend(("--instructions-file", configuration.instructions_file or ""))
+    if configuration.session_profile_id:
+        arguments.extend(("--session-profile", configuration.session_profile_id))
+    if configuration.start_path:
+        arguments.extend(("--start-path", configuration.start_path))
     return arguments
 
 

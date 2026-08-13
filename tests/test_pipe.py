@@ -39,44 +39,65 @@ def test_saved_profile_configuration(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     ]
 
 
-def test_one_time_profile_and_notes_must_exist(
+def test_direct_instructions_file_can_select_a_session_and_start_path(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     configure(monkeypatch, tmp_path)
-    monkeypatch.setenv("ONE_TIME_PROFILE_FILE", ".vyspec/profile.json")
-    monkeypatch.setenv("RUN_NOTES_FILE", ".vyspec/notes.json")
+    monkeypatch.setenv("INSTRUCTIONS_FILE", ".vyspec/qa.md")
+    monkeypatch.setenv("SESSION_PROFILE_ID", "session-id")
+    monkeypatch.setenv("START_PATH", "/checkout")
     (tmp_path / ".vyspec").mkdir()
-    (tmp_path / ".vyspec/profile.json").write_text("{}", encoding="utf-8")
-    (tmp_path / ".vyspec/notes.json").write_text("[]", encoding="utf-8")
+    (tmp_path / ".vyspec/qa.md").write_text("Verify checkout.", encoding="utf-8")
 
     arguments = pipe.runner_arguments(pipe.load_configuration())
 
-    assert arguments[-4:] == [
-        "--one-time",
-        ".vyspec/profile.json",
-        "--notes",
-        ".vyspec/notes.json",
+    assert arguments[-6:] == [
+        "--instructions-file",
+        ".vyspec/qa.md",
+        "--session-profile",
+        "session-id",
+        "--start-path",
+        "/checkout",
     ]
 
 
 @pytest.mark.parametrize(
-    ("run_profile", "one_time"),
-    [(None, None), ("profile-id", ".vyspec/profile.json")],
+    ("run_profile", "instructions", "instructions_file"),
+    [
+        (None, None, None),
+        ("profile-id", "Verify checkout", None),
+        (None, "Verify checkout", ".vyspec/qa.md"),
+    ],
 )
-def test_exactly_one_profile_selector_is_required(
+def test_exactly_one_execution_source_is_required(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     run_profile: str | None,
-    one_time: str | None,
+    instructions: str | None,
+    instructions_file: str | None,
 ) -> None:
     configure(monkeypatch, tmp_path)
     if run_profile:
         monkeypatch.setenv("RUN_PROFILE_ID", run_profile)
-    if one_time:
-        monkeypatch.setenv("ONE_TIME_PROFILE_FILE", one_time)
+    if instructions:
+        monkeypatch.setenv("INSTRUCTIONS", instructions)
+    if instructions_file:
+        monkeypatch.setenv("INSTRUCTIONS_FILE", instructions_file)
 
     with pytest.raises(pipe.PipeConfigurationError, match="exactly one"):
+        pipe.load_configuration()
+
+
+def test_saved_profile_rejects_direct_run_options(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    configure(monkeypatch, tmp_path)
+    monkeypatch.setenv("RUN_PROFILE_ID", "profile-id")
+    monkeypatch.setenv("START_PATH", "/checkout")
+
+    with pytest.raises(pipe.PipeConfigurationError, match="direct instructions"):
         pipe.load_configuration()
 
 

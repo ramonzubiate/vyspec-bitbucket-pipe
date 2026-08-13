@@ -1,6 +1,7 @@
 # Bitbucket Pipelines Pipe: Vyspec QA
 
-Run saved or one-time Vyspec QA against an application started in the same Bitbucket Pipeline step.
+Run a saved Vyspec Profile or direct QA instructions against an application started in the same
+Bitbucket Pipeline step.
 
 ## YAML Definition
 
@@ -14,7 +15,7 @@ pipelines:
           name: Vyspec QA
           script:
             - ./ci/start-app-for-vyspec.sh
-            - pipe: docker://ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.0.0
+            - pipe: docker://ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.1.0
               variables:
                 VSY_PROJECT_API_KEY: $VSY_PROJECT_API_KEY
                 RUN_PROFILE_ID: "<run-profile-id>"
@@ -32,14 +33,17 @@ container, so it uses Bitbucket's internal build-host bridge and proxies the app
 | Variable | Required | Description |
 | --- | --- | --- |
 | `VSY_PROJECT_API_KEY` | Yes | Revocable Project API key stored as a secured repository variable. |
-| `RUN_PROFILE_ID` | One profile selector is required | UUID of a saved Run Profile. |
-| `ONE_TIME_PROFILE_FILE` | One profile selector is required | Repository-relative one-time Run Profile JSON file. |
-| `RUN_NOTES_FILE` | No | Repository-relative JSON array of customer-supplied Run notes. |
+| `RUN_PROFILE_ID` | One execution source | UUID of a saved Run Profile. |
+| `INSTRUCTIONS` | One execution source | Direct QA instructions. |
+| `INSTRUCTIONS_FILE` | One execution source | Repository-relative plain-text QA instructions file. |
+| `SESSION_PROFILE_ID` | No | Session Profile UUID for a direct authenticated Run. |
+| `START_PATH` | No | Origin-relative start path for a direct Run. |
 | `APP_READY_TIMEOUT` | No | Seconds to wait for the app; defaults to `120`. |
 | `BITBUCKET_VYSPEC_TOKEN` | No | Repository access token with pull-request write permission for one maintained PR comment. |
 | `VSY_API_URL` | No | Vyspec API origin; defaults to `https://app.vyspec.com`. |
 
-Set either `RUN_PROFILE_ID` or `ONE_TIME_PROFILE_FILE`, never both.
+Set exactly one of `RUN_PROFILE_ID`, `INSTRUCTIONS`, or `INSTRUCTIONS_FILE`. Session Profile and
+start-path values apply only to direct instructions; a saved Run Profile already owns that setup.
 
 ## Details
 
@@ -61,20 +65,21 @@ token is supplied, each rerun updates one existing pull-request comment instead 
 Run a saved Profile:
 
 ```yaml
-- pipe: docker://ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.0.0
+- pipe: docker://ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.1.0
   variables:
     VSY_PROJECT_API_KEY: $VSY_PROJECT_API_KEY
     RUN_PROFILE_ID: "20734cd8-afa8-4dcb-a71c-d64b15a7e850"
 ```
 
-Run a repository-owned one-time Profile and attach notes:
+Run repository-owned direct instructions with an authenticated Session Profile:
 
 ```yaml
-- pipe: docker://ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.0.0
+- pipe: docker://ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.1.0
   variables:
     VSY_PROJECT_API_KEY: $VSY_PROJECT_API_KEY
-    ONE_TIME_PROFILE_FILE: ".vyspec/verify-fix.json"
-    RUN_NOTES_FILE: ".vyspec/run-notes.json"
+    INSTRUCTIONS_FILE: ".vyspec/verify-fix.md"
+    SESSION_PROFILE_ID: "423e4567-e89b-42d3-a456-426614174000"
+    START_PATH: "/account"
     BITBUCKET_VYSPEC_TOKEN: $BITBUCKET_VYSPEC_TOKEN
 ```
 
