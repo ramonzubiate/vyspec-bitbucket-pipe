@@ -2,7 +2,7 @@ name: Vyspec QA
 image: ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.2.0
 category: Testing
 description: Run a saved Vyspec Profile or direct QA instructions in Bitbucket Pipelines.
-repository: https://github.com/ramonzubiate/vyspec-bitbucket-pipe
+repository: https://github.com/Vyspec/vyspec-bitbucket-pipe
 maintainer:
   name: Vyspec
   website: https://vyspec.com

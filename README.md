@@ -91,7 +91,7 @@ Pass `VYSPEC_COMMENT_COMMAND`, `VYSPEC_INSTRUCTIONS`, `VYSPEC_CHANGE_REQUEST_NUM
 
 ## Support
 
-Open an issue at <https://github.com/ramonzubiate/vyspec-bitbucket-pipe/issues> with the Pipe version,
+Open an issue at <https://github.com/Vyspec/vyspec-bitbucket-pipe/issues> with the Pipe version,
 Pipeline logs, and reproduction details.
 
 ## License
