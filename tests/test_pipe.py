@@ -101,60 +101,75 @@ def test_saved_profile_rejects_direct_run_options(
         pipe.load_configuration()
 
 
-def test_failed_qa_comment_reports_findings() -> None:
-    body = pipe.comment_body(
-        {
-            "qa_verdict": "failed",
-            "run_url": "https://app.vyspec.com/app/runs/run-id",
-            "findings": [
-                {
-                    "severity": "high",
-                    "title": "Total is inconsistent",
-                    "observed": "$24 + $3 is displayed as $24",
-                }
-            ],
-        }
-    )
-
-    assert "❌ Vyspec QA — FAILED" in body
-    assert "**Confirmed findings:** 1" in body
-    assert "HIGH — Total is inconsistent" in body
-    assert "https://app.vyspec.com/app/runs/run-id" in body
-
-
-def test_pull_request_comment_is_updated(
+def test_pull_request_report_is_sent_through_vyspec(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    configure(monkeypatch, tmp_path)
+    run_id = "00000000-0000-4000-8000-000000000001"
     result_file = tmp_path / "vyspec-result.json"
     result_file.write_text(
-        json.dumps({"qa_verdict": "passed", "findings": []}),
+        json.dumps({
+            "qa_verdict": "passed",
+            "findings": [],
+            "run_id": run_id,
+            "run_url": f"https://app.vyspec.com/app/runs/{run_id}",
+        }),
         encoding="utf-8",
     )
-    monkeypatch.setenv("BITBUCKET_VYSPEC_TOKEN", "token")
     monkeypatch.setenv("BITBUCKET_PR_ID", "12")
-    monkeypatch.setenv("BITBUCKET_REPO_FULL_NAME", "vyspec/example")
-    request = Mock(
-        side_effect=[
-            {
-                "values": [
-                    {
-                        "id": 41,
-                        "content": {"raw": f"{pipe.COMMENT_MARKER}\nold"},
-                    }
-                ]
-            },
-            {},
-        ]
-    )
+    monkeypatch.setenv("BITBUCKET_REPO_UUID", "{repository}")
+    request = Mock(return_value={"reported": True})
     monkeypatch.setattr(pipe, "api_request", request)
 
-    pipe.update_pull_request_comment(result_file)
+    pipe.report_pull_request(result_file)
 
-    assert request.call_args_list[1].args[:2] == (
-        "PUT",
-        "https://api.bitbucket.org/2.0/repositories/vyspec/example/pullrequests/12/comments/41",
+    assert request.call_args.args == (
+        "https://app.vyspec.com/api/v1/integrations/bitbucket/report",
+        "vsy_live_test",
+        {
+            "change_request_number": 12,
+            "provider_repository_id": "{repository}",
+            "result": {
+                "qa_verdict": "passed",
+                "findings": [],
+                "run_id": run_id,
+                "run_url": f"https://app.vyspec.com/app/runs/{run_id}",
+            },
+        },
     )
+
+
+def test_pull_request_report_never_sends_the_project_key_to_the_run_url_origin(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    configure(monkeypatch, tmp_path)
+    result_file = tmp_path / "vyspec-result.json"
+    result_file.write_text(
+        json.dumps({"run_url": "https://attacker.example/runs/1"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("BITBUCKET_PR_ID", "12")
+    monkeypatch.setenv("BITBUCKET_REPO_UUID", "{repository}")
+    monkeypatch.setenv("VSY_API_URL", "https://app.vyspec.test")
+    request = Mock(return_value={"reported": True})
+    monkeypatch.setattr(pipe, "api_request", request)
+
+    pipe.report_pull_request(result_file)
+
+    assert request.call_args.args[0] == (
+        "https://app.vyspec.test/api/v1/integrations/bitbucket/report"
+    )
+
+
+def test_vyspec_api_origin_rejects_insecure_remote_hosts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VSY_API_URL", "http://attacker.example")
+
+    with pytest.raises(ValueError, match="HTTPS origin"):
+        pipe.vyspec_api_origin()
 
 
 def test_runner_environment_uses_bitbucket_revision(monkeypatch: pytest.MonkeyPatch) -> None:

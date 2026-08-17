@@ -1,5 +1,5 @@
 name: Vyspec QA
-image: ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.2.0
+image: ghcr.io/vyspec/vyspec-bitbucket-pipe:1.3.0
 category: Testing
 description: Run a saved Vyspec Profile or direct QA instructions in Bitbucket Pipelines.
 repository: https://github.com/Vyspec/vyspec-bitbucket-pipe
@@ -28,7 +28,5 @@ variables:
     default: ""
   - name: APP_READY_TIMEOUT
     default: "120"
-  - name: BITBUCKET_VYSPEC_TOKEN
-    default: ""
   - name: VSY_API_URL
     default: "https://app.vyspec.com"

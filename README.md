@@ -15,11 +15,10 @@ pipelines:
           name: Vyspec QA
           script:
             - ./ci/start-app-for-vyspec.sh
-            - pipe: docker://ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.2.0
+            - pipe: docker://ghcr.io/vyspec/vyspec-bitbucket-pipe:1.3.0
               variables:
                 VSY_PROJECT_API_KEY: $VSY_PROJECT_API_KEY
                 RUN_PROFILE_ID: "<run-profile-id>"
-                BITBUCKET_VYSPEC_TOKEN: $BITBUCKET_VYSPEC_TOKEN
           artifacts:
             - vyspec-result.json
 ```
@@ -39,7 +38,6 @@ container, so it uses Bitbucket's internal build-host bridge and proxies the app
 | `SESSION_PROFILE_ID` | No | Session Profile UUID for a direct authenticated Run. |
 | `START_PATH` | No | Origin-relative start path for a direct Run. |
 | `APP_READY_TIMEOUT` | No | Seconds to wait for the app; defaults to `120`. |
-| `BITBUCKET_VYSPEC_TOKEN` | No | Repository access token with pull-request write permission for one maintained PR comment. |
 | `VSY_API_URL` | No | Vyspec API origin; defaults to `https://app.vyspec.com`. |
 
 Set exactly one of `RUN_PROFILE_ID`, `INSTRUCTIONS`, or `INSTRUCTIONS_FILE`. Session Profile and
@@ -49,23 +47,22 @@ start-path values apply only to direct instructions; a saved Run Profile already
 
 The Pipe contains the released Vyspec CLI and Chromium runtime. It preserves the canonical result
 as `vyspec-result.json`, reports operational failures through the Pipeline exit status, and treats a
-completed QA verdict of `failed` as a successful execution with confirmed defects. When a Bitbucket
-token is supplied, each rerun updates one existing pull-request comment instead of creating duplicates.
+completed QA verdict of `failed` as a successful execution with confirmed defects. For a connected
+repository, the Pipe sends its result to Vyspec and Vyspec updates one pull-request report through the
+authorized Bitbucket account.
 
 ## Prerequisites
 
-- A Vyspec Project and Project API key.
+- A Vyspec Project connected to the Bitbucket repository. Vyspec creates the Project API key and
+  secured repository variable automatically.
 - An application started by the repository on `0.0.0.0:3000` in the same Pipeline step.
-- `VSY_PROJECT_API_KEY` stored as a secured Bitbucket repository variable.
-- Optionally, a repository access token with pull-request write permission stored as
-  `BITBUCKET_VYSPEC_TOKEN`.
 
 ## Examples
 
 Run a saved Profile:
 
 ```yaml
-- pipe: docker://ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.2.0
+- pipe: docker://ghcr.io/vyspec/vyspec-bitbucket-pipe:1.3.0
   variables:
     VSY_PROJECT_API_KEY: $VSY_PROJECT_API_KEY
     RUN_PROFILE_ID: "20734cd8-afa8-4dcb-a71c-d64b15a7e850"
@@ -74,13 +71,12 @@ Run a saved Profile:
 Run repository-owned direct instructions with an authenticated Session Profile:
 
 ```yaml
-- pipe: docker://ghcr.io/ramonzubiate/vyspec-bitbucket-pipe:1.2.0
+- pipe: docker://ghcr.io/vyspec/vyspec-bitbucket-pipe:1.3.0
   variables:
     VSY_PROJECT_API_KEY: $VSY_PROJECT_API_KEY
     INSTRUCTIONS_FILE: ".vyspec/verify-fix.md"
     SESSION_PROFILE_ID: "423e4567-e89b-42d3-a456-426614174000"
     START_PATH: "/account"
-    BITBUCKET_VYSPEC_TOKEN: $BITBUCKET_VYSPEC_TOKEN
 ```
 
 To support `@vyspec run` pull-request comments, also define a custom pipeline named

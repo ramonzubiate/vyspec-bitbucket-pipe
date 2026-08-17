@@ -2,16 +2,13 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import subprocess
 import sys
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
-from urllib.parse import quote
+from urllib.parse import urlsplit
 
-COMMENT_MARKER = "<!-- vyspec-qa-result -->"
 RESULT_FILENAME = "vyspec-result.json"
 VYSPEC_APP_PORT = 3000
 
@@ -147,17 +144,11 @@ def start_loopback_bridge() -> subprocess.Popen[bytes]:
     )
 
 
-def api_request(
-    method: str,
-    url: str,
-    token: str,
-    body: dict[str, object] | None = None,
-) -> Any:
-    data = json.dumps(body).encode() if body is not None else None
+def api_request(url: str, token: str, body: dict[str, object]) -> dict[str, object]:
     request = urllib.request.Request(
         url,
-        data=data,
-        method=method,
+        data=json.dumps(body).encode(),
+        method="POST",
         headers={
             "Accept": "application/json",
             "Authorization": f"Bearer {token}",
@@ -165,68 +156,10 @@ def api_request(
         },
     )
     with urllib.request.urlopen(request, timeout=30) as response:
-        return json.load(response)
-
-
-def markdown_text(value: object) -> str:
-    text = " ".join(str(value or "").split()).replace("@", "@\u200b")
-    return re.sub(r"([`*_\[\]<>])", r"\\\1", text)
-
-
-def comment_body(result: dict[str, object] | None) -> str:
-    if result is None:
-        return (
-            f"{COMMENT_MARKER}\n## ⚠️ Vyspec QA — EXECUTION INCOMPLETE\n\n"
-            "Vyspec could not produce a QA verdict. Review the Pipeline logs for the "
-            "operational error."
-        )
-
-    verdict = result.get("qa_verdict")
-    raw_findings = result.get("findings")
-    findings = raw_findings if isinstance(raw_findings, list) else []
-    if verdict == "failed":
-        heading = "❌ Vyspec QA — FAILED"
-        summary = "Vyspec confirmed defects in this pull request."
-    elif verdict == "passed":
-        heading = "✅ Vyspec QA — PASSED"
-        summary = "Vyspec did not confirm any defects in this pull request."
-    else:
-        heading = "⚠️ Vyspec QA — EXECUTION INCOMPLETE"
-        summary = "Vyspec could not produce a definitive QA verdict."
-
-    execution = "✅ Completed" if verdict in {"passed", "failed"} else "⚠️ Incomplete"
-    qa_verdict = (
-        "❌ FAILED"
-        if verdict == "failed"
-        else "✅ PASSED"
-        if verdict == "passed"
-        else "Unavailable"
-    )
-    lines = [
-        COMMENT_MARKER,
-        f"## {heading}",
-        "",
-        summary,
-        "",
-        f"**Execution:** {execution}",
-        f"**QA verdict:** {qa_verdict}",
-        f"**Confirmed findings:** {len(findings)}",
-    ]
-    for index, finding in enumerate(findings[:10], start=1):
-        if not isinstance(finding, dict):
-            continue
-        severity = markdown_text(finding.get("severity")).upper()
-        title = markdown_text(finding.get("title"))
-        observed = markdown_text(finding.get("observed"))[:300]
-        lines.extend(("", f"{index}. **{severity} — {title}**"))
-        if observed:
-            lines.append(f"   {observed}")
-    if len(findings) > 10:
-        lines.extend(("", f"_{len(findings) - 10} more findings are available in Vyspec._"))
-    run_url = markdown_text(result.get("run_url"))
-    if run_url:
-        lines.extend(("", f"[View findings, evidence, and execution trace →]({run_url})"))
-    return "\n".join(lines)
+        payload = json.load(response)
+    if not isinstance(payload, dict):
+        raise ValueError("Vyspec reporting returned an invalid response")
+    return payload
 
 
 def load_result(result_file: Path) -> dict[str, object] | None:
@@ -236,38 +169,48 @@ def load_result(result_file: Path) -> dict[str, object] | None:
     return raw_result if isinstance(raw_result, dict) else None
 
 
-def update_pull_request_comment(result_file: Path) -> None:
-    token = optional_environment("BITBUCKET_VYSPEC_TOKEN")
+def vyspec_api_origin() -> str:
+    configured = optional_environment("VSY_API_URL") or "https://app.vyspec.com"
+    parsed = urlsplit(configured)
+    local_http = parsed.scheme == "http" and parsed.hostname in {
+        "127.0.0.1",
+        "::1",
+        "localhost",
+    }
+    if (
+        (parsed.scheme != "https" and not local_http)
+        or not parsed.netloc
+        or parsed.username
+        or parsed.password
+        or parsed.path not in {"", "/"}
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("VSY_API_URL must be an HTTPS origin")
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def report_pull_request(result_file: Path) -> None:
+    token = optional_environment("VSY_PROJECT_API_KEY")
     pull_request = optional_environment("BITBUCKET_PR_ID") or optional_environment(
         "VYSPEC_CHANGE_REQUEST_NUMBER"
     )
-    repository = optional_environment("BITBUCKET_REPO_FULL_NAME")
-    if not token or not pull_request or not repository:
+    repository_id = optional_environment("BITBUCKET_REPO_UUID")
+    if not token or not pull_request or not repository_id:
         return
 
-    encoded_repository = quote(repository, safe="/")
-    base_url = (
-        f"https://api.bitbucket.org/2.0/repositories/{encoded_repository}"
-        f"/pullrequests/{quote(pull_request, safe='')}/comments"
+    result = load_result(result_file)
+    response = api_request(
+        f"{vyspec_api_origin()}/api/v1/integrations/bitbucket/report",
+        token,
+        {
+            "change_request_number": int(pull_request),
+            "provider_repository_id": repository_id,
+            "result": result,
+        },
     )
-    response = api_request("GET", f"{base_url}?pagelen=100", token)
-    raw_comments = response.get("values") if isinstance(response, dict) else None
-    comments = raw_comments if isinstance(raw_comments, list) else []
-    existing = next(
-        (
-            comment
-            for comment in comments
-            if isinstance(comment, dict)
-            and isinstance(comment.get("content"), dict)
-            and COMMENT_MARKER in str(comment["content"].get("raw", ""))
-        ),
-        None,
-    )
-    body: dict[str, object] = {"content": {"raw": comment_body(load_result(result_file))}}
-    if existing is None:
-        api_request("POST", base_url, token, body)
-    else:
-        api_request("PUT", f"{base_url}/{existing['id']}", token, body)
+    if not response.get("reported"):
+        print("Vyspec: connect this Bitbucket repository to enable pull-request reports.")
 
 
 def main() -> int:
@@ -298,7 +241,7 @@ def main() -> int:
             except subprocess.TimeoutExpired:
                 bridge.kill()
         try:
-            update_pull_request_comment(result_file)
+            report_pull_request(result_file)
         except Exception as error:
             print(
                 f"Vyspec error: could not update the pull-request report: {error}.",
