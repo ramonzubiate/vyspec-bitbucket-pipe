@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 
 RESULT_FILENAME = "vyspec-result.json"
 VYSPEC_APP_PORT = 3000
+DEFAULT_VYSPEC_API_ORIGIN = "https://www.vyspec.com"
 
 
 class PipeConfigurationError(ValueError):
@@ -127,6 +128,7 @@ def runner_environment() -> dict[str, str]:
             "VSY_CI_PULL_REQUEST_NUMBER": os.getenv("VYSPEC_CHANGE_REQUEST_NUMBER") or os.getenv("BITBUCKET_PR_ID", ""),
             "VSY_CI_REPOSITORY": os.getenv("BITBUCKET_REPO_FULL_NAME", ""),
             "VSY_HEADLESS": "true",
+            "VSY_API_URL": vyspec_api_origin(),
         }
     )
     return environment
@@ -170,7 +172,7 @@ def load_result(result_file: Path) -> dict[str, object] | None:
 
 
 def vyspec_api_origin() -> str:
-    configured = optional_environment("VSY_API_URL") or "https://app.vyspec.com"
+    configured = optional_environment("VSY_API_URL") or DEFAULT_VYSPEC_API_ORIGIN
     parsed = urlsplit(configured)
     local_http = parsed.scheme == "http" and parsed.hostname in {
         "127.0.0.1",

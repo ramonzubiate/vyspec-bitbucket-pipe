@@ -15,7 +15,7 @@ pipelines:
           name: Vyspec QA
           script:
             - ./ci/start-app-for-vyspec.sh
-            - pipe: docker://ghcr.io/vyspec/vyspec-bitbucket-pipe:1.3.0
+            - pipe: docker://ghcr.io/vyspec/vyspec-bitbucket-pipe:1.3.1
               variables:
                 VSY_PROJECT_API_KEY: $VSY_PROJECT_API_KEY
                 RUN_PROFILE_ID: "<run-profile-id>"
@@ -38,7 +38,7 @@ container, so it uses Bitbucket's internal build-host bridge and proxies the app
 | `SESSION_PROFILE_ID` | No | Session Profile UUID for a direct authenticated Run. |
 | `START_PATH` | No | Origin-relative start path for a direct Run. |
 | `APP_READY_TIMEOUT` | No | Seconds to wait for the app; defaults to `120`. |
-| `VSY_API_URL` | No | Vyspec API origin; defaults to `https://app.vyspec.com`. |
+| `VSY_API_URL` | No | Vyspec API origin; defaults to `https://www.vyspec.com`. |
 
 Set exactly one of `RUN_PROFILE_ID`, `INSTRUCTIONS`, or `INSTRUCTIONS_FILE`. Session Profile and
 start-path values apply only to direct instructions; a saved Run Profile already owns that setup.
@@ -62,7 +62,7 @@ authorized Bitbucket account.
 Run a saved Profile:
 
 ```yaml
-- pipe: docker://ghcr.io/vyspec/vyspec-bitbucket-pipe:1.3.0
+- pipe: docker://ghcr.io/vyspec/vyspec-bitbucket-pipe:1.3.1
   variables:
     VSY_PROJECT_API_KEY: $VSY_PROJECT_API_KEY
     RUN_PROFILE_ID: "20734cd8-afa8-4dcb-a71c-d64b15a7e850"
@@ -71,7 +71,7 @@ Run a saved Profile:
 Run repository-owned direct instructions with an authenticated Session Profile:
 
 ```yaml
-- pipe: docker://ghcr.io/vyspec/vyspec-bitbucket-pipe:1.3.0
+- pipe: docker://ghcr.io/vyspec/vyspec-bitbucket-pipe:1.3.1
   variables:
     VSY_PROJECT_API_KEY: $VSY_PROJECT_API_KEY
     INSTRUCTIONS_FILE: ".vyspec/verify-fix.md"

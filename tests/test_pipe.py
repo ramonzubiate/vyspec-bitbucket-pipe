@@ -113,7 +113,7 @@ def test_pull_request_report_is_sent_through_vyspec(
             "qa_verdict": "passed",
             "findings": [],
             "run_id": run_id,
-            "run_url": f"https://app.vyspec.com/app/runs/{run_id}",
+            "run_url": f"https://www.vyspec.com/app/runs/{run_id}",
         }),
         encoding="utf-8",
     )
@@ -125,7 +125,7 @@ def test_pull_request_report_is_sent_through_vyspec(
     pipe.report_pull_request(result_file)
 
     assert request.call_args.args == (
-        "https://app.vyspec.com/api/v1/integrations/bitbucket/report",
+        "https://www.vyspec.com/api/v1/integrations/bitbucket/report",
         "vsy_live_test",
         {
             "change_request_number": 12,
@@ -134,7 +134,7 @@ def test_pull_request_report_is_sent_through_vyspec(
                 "qa_verdict": "passed",
                 "findings": [],
                 "run_id": run_id,
-                "run_url": f"https://app.vyspec.com/app/runs/{run_id}",
+                "run_url": f"https://www.vyspec.com/app/runs/{run_id}",
             },
         },
     )
@@ -187,6 +187,17 @@ def test_runner_environment_uses_bitbucket_revision(monkeypatch: pytest.MonkeyPa
     assert environment["VSY_CI_PULL_REQUEST_NUMBER"] == "7"
     assert environment["VSY_CI_REPOSITORY"] == "vyspec/example"
     assert environment["VSY_HEADLESS"] == "true"
+    assert environment["VSY_API_URL"] == "https://www.vyspec.com"
+
+
+def test_runner_environment_honors_a_configured_api_origin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VSY_API_URL", "https://staging.vyspec.test/")
+
+    environment = pipe.runner_environment()
+
+    assert environment["VSY_API_URL"] == "https://staging.vyspec.test"
 
 
 def test_comment_command_overrides_saved_profile_and_pins_revision(
