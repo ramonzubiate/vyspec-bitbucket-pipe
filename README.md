@@ -15,7 +15,7 @@ pipelines:
           name: Vyspec QA
           script:
             - ./ci/start-app-for-vyspec.sh
-            - pipe: docker://ghcr.io/vyspec/vyspec-bitbucket-pipe:1.3.1
+            - pipe: docker://ghcr.io/vyspec/vyspec-bitbucket-pipe:1
               variables:
                 VSY_PROJECT_API_KEY: $VSY_PROJECT_API_KEY
                 RUN_PROFILE_ID: "<run-profile-id>"
@@ -62,7 +62,7 @@ authorized Bitbucket account.
 Run a saved Profile:
 
 ```yaml
-- pipe: docker://ghcr.io/vyspec/vyspec-bitbucket-pipe:1.3.1
+- pipe: docker://ghcr.io/vyspec/vyspec-bitbucket-pipe:1
   variables:
     VSY_PROJECT_API_KEY: $VSY_PROJECT_API_KEY
     RUN_PROFILE_ID: "20734cd8-afa8-4dcb-a71c-d64b15a7e850"
@@ -71,7 +71,7 @@ Run a saved Profile:
 Run repository-owned direct instructions with an authenticated Session Profile:
 
 ```yaml
-- pipe: docker://ghcr.io/vyspec/vyspec-bitbucket-pipe:1.3.1
+- pipe: docker://ghcr.io/vyspec/vyspec-bitbucket-pipe:1
   variables:
     VSY_PROJECT_API_KEY: $VSY_PROJECT_API_KEY
     INSTRUCTIONS_FILE: ".vyspec/verify-fix.md"
