@@ -1,6 +1,6 @@
 FROM python:3.12.11-bookworm
 
-ARG VYSPEC_VERSION=0.1.6
+ARG VYSPEC_VERSION=0.1.7
 
 LABEL org.opencontainers.image.description="Run Vyspec QA in Bitbucket Pipelines"
 LABEL org.opencontainers.image.licenses="MIT"
